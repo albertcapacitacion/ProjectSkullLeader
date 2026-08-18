@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Skull Leader — Mech Combat v0</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main id="game"></main>
+    <aside id="hud" aria-label="Debug HUD">
+      <div class="hud-title">SKULL LEADER <span>v0</span></div>
+      <div class="health-row"><span>P1</span><div class="health-track"><i id="player-health"></i></div><b id="player-health-text">100</b></div>
+      <div class="health-row"><span>P2</span><div class="health-track"><i id="bot-health"></i></div><b id="bot-health-text">100</b></div>
+      <dl>
+        <div><dt>MODE</dt><dd id="mode">COMBAT</dd></div>
+        <div><dt>SPEED</dt><dd id="speed">0.0</dd></div>
+        <div><dt>DISTANCE</dt><dd id="distance">0.0</dd></div>
+        <div><dt>GUN</dt><dd id="gun-status">READY</dd></div>
+        <div><dt>MISSILES</dt><dd id="missile-status">READY</dd></div>
+        <div><dt>FPS</dt><dd id="fps">0</dd></div>
+      </dl>
+    </aside>
+    <div id="reticle" aria-hidden="true"><span></span></div>
+    <section id="help">
+      <strong>WASD</strong> move · <strong>Arrows</strong> camera · <strong>U</strong> gun · <strong>I</strong> missiles · <strong>Space</strong> glide
+    </section>
+    <section id="tuning-panel" class="collapsed">
+      <button id="tuning-toggle" type="button">TUNING <span>+</span></button>
+      <div id="tuning-controls"></div>
+      <div class="tuning-actions">
+        <button id="reset-tuning" type="button">Reset Defaults</button>
+        <button id="copy-tuning" type="button">Copy Tuning JSON</button>
+      </div>
+    </section>
+    <div id="message" role="status"></div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

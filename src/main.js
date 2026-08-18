@@ -6,6 +6,7 @@ const tuningDefaults = {
   gun: { damage: 5, fireRate: 10, projectileSpeed: 80, closeSpread: 0.01, farSpread: 0.08, assistStrength: 0.6, assistMaxRange: 100, assistAngle: 0.65 },
   missiles: { damage: 25, cooldown: 2, volleySize: 2, speed: 35, turnRate: 2.5, closeHoming: 0.9, farHoming: 0.25, closeRange: 30, farRange: 120 },
   arena: { size: 86, mechCollisionRadius: 1.1 },
+  radar: { range: 80 },
   bot: { directionChangeMin: 1.3, directionChangeMax: 3.8, steeringRate: 0.9, gunChance: 0.7, missileChance: 0.2, missileInterval: 2.5 },
   projectiles: { gunLife: 3, missileLife: 7, gunHitRadius: 1.25, missileHitRadius: 1.6 },
   respawn: { delay: 1, deathEffectDuration: 0.18 }
@@ -216,6 +217,17 @@ function updateCamera(delta) {
 }
 function showMessage(text) { const element = document.querySelector("#message"); element.textContent = text; element.style.opacity = "1"; messageTimer = 0.7; }
 
+function updateRadar() {
+  const target = document.querySelector("#radar-target"); const status = document.querySelector("#radar-status");
+  const range = Math.max(tuning.radar.range, 1); const offset = bot.position.clone().sub(player.position); const distance = offset.length();
+  const angle = Math.atan2(offset.x, offset.z) - player.yaw; const radius = 56; const distanceRatio = Math.min(distance / range, 1);
+  target.style.transform = `translate(${Math.sin(angle) * radius * distanceRatio}px, ${-Math.cos(angle) * radius * distanceRatio}px)`;
+  target.classList.toggle("radar-target-out", distance > range); target.classList.toggle("radar-target-blocked", !hasLineOfSight(player.position.clone().add(new THREE.Vector3(0, 2, 0)), bot.position.clone().add(new THREE.Vector3(0, 2, 0))));
+  status.textContent = distance > range ? "OUT OF RANGE" : target.classList.contains("radar-target-blocked") ? "BLOCKED" : "TRACKING";
+  document.querySelector("#radar-range-text").textContent = `${Math.round(range)}m`;
+  document.querySelector("#radar-sweep").style.transform = `rotate(${performance.now() / 1600 % (Math.PI * 2)}rad)`;
+}
+
 function createTuningUI() {
   const container = document.querySelector("#tuning-controls");
   for (const [groupName, group] of Object.entries(tuning)) {
@@ -245,6 +257,7 @@ function updateHUD(delta) {
   set("#gun-status", player.gunCooldown > 0 ? player.gunCooldown.toFixed(1) : "READY"); set("#missile-status", player.missileCooldown > 0 ? player.missileCooldown.toFixed(1) : "READY"); set("#player-health-text", Math.ceil(player.health)); set("#bot-health-text", Math.ceil(bot.health));
   const healthMaximum = Math.max(tuning.player.health, 1); document.querySelector("#player-health").style.width = `${Math.max(0, player.health / healthMaximum * 100)}%`; document.querySelector("#bot-health").style.width = `${Math.max(0, bot.health / healthMaximum * 100)}%`;
   document.querySelector("#reticle").style.borderColor = distance < tuning.gun.assistMaxRange * 0.35 ? "#fff" : "rgba(255,255,255,.55)";
+  updateRadar();
 }
 function animate() {
   requestAnimationFrame(animate); const delta = Math.min(clock.getDelta(), 0.05); readInput();

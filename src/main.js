@@ -66,12 +66,23 @@ const grid = new THREE.GridHelper(tuning.arena.size, 16, 0x71818a, 0x4a575f); gr
 const obstacleMeshes = obstacles.map((obstacle) => obstacle.mesh);
 
 function createMech(color) {
-  const root = new THREE.Group(); const material = new THREE.MeshLambertMaterial({ color });
-  function addPart(geometry, position) { const mesh = new THREE.Mesh(geometry, material); mesh.position.set(...position); mesh.castShadow = true; root.add(mesh); }
+  const root = new THREE.Group();
+  const material = new THREE.MeshLambertMaterial({ color });
+  const isPlayerColor = color === 0x1988e8;
+  const frontMaterial = new THREE.MeshLambertMaterial({ color: isPlayerColor ? 0x8fddff : 0xffa0a5 });
+  const backpackMaterial = new THREE.MeshLambertMaterial({ color: isPlayerColor ? 0x27353d : 0x5b2026 });
+  const sideAccentMaterial = new THREE.MeshLambertMaterial({ color: isPlayerColor ? 0xd7f4ff : 0xffd0d2 });
+  function addPart(geometry, position, partMaterial = material) { const mesh = new THREE.Mesh(geometry, partMaterial); mesh.position.set(...position); mesh.castShadow = true; root.add(mesh); }
   addPart(new THREE.BoxGeometry(1.4, 1.7, 0.9), [0, 2.5, 0]); addPart(new THREE.BoxGeometry(0.75, 0.65, 0.7), [0, 3.75, 0]);
   addPart(new THREE.BoxGeometry(0.42, 1.7, 0.5), [-1.05, 2.4, 0]); addPart(new THREE.BoxGeometry(0.42, 1.7, 0.5), [1.05, 2.4, 0]);
   addPart(new THREE.BoxGeometry(0.55, 1.7, 0.62), [-0.45, 0.85, 0]); addPart(new THREE.BoxGeometry(0.55, 1.7, 0.62), [0.45, 0.85, 0]);
-  addPart(new THREE.BoxGeometry(1.9, 0.7, 0.5), [0, 2.9, -0.5]); scene.add(root); return root;
+  addPart(new THREE.BoxGeometry(1.9, 0.7, 0.5), [0, 2.9, -0.5], backpackMaterial);
+  addPart(new THREE.BoxGeometry(0.95, 0.42, 0.06), [0, 2.55, 0.46], frontMaterial);
+  addPart(new THREE.BoxGeometry(0.48, 0.16, 0.06), [0, 3.76, 0.36], frontMaterial);
+  addPart(new THREE.BoxGeometry(0.05, 1.15, 0.68), [0.71, 2.55, 0], sideAccentMaterial);
+  addPart(new THREE.BoxGeometry(0.18, 0.8, 0.26), [-0.68, 3.2, -0.58], backpackMaterial);
+  addPart(new THREE.BoxGeometry(0.18, 0.8, 0.26), [0.68, 3.2, -0.58], backpackMaterial);
+  scene.add(root); return root;
 }
 function createMechState(color, position, mode, yaw = 0) {
   return { object3D: createMech(color), position: position.clone(), velocity: new THREE.Vector3(), mode, health: tuning.player.health, gunCooldown: 0, missileCooldown: 0, dead: 0, deathEffect: 0, yaw, aiTimer: 0, aiDirection: new THREE.Vector3(1, 0, 0), botMissileTimer: 0 };

@@ -14,17 +14,17 @@ const tuningDefaults = {
 const tuning = structuredClone(tuningDefaults);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x9aabb4);
-scene.fog = new THREE.Fog(0x9aabb4, 85, 180);
+scene.background = new THREE.Color(0xaed5ee);
+scene.fog = new THREE.Fog(0xaed5ee, 105, 210);
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 300);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 document.querySelector("#game").append(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xdcecff, 0x45515b, 2.2));
+scene.add(new THREE.HemisphereLight(0xe9f7ff, 0x61706b, 2.5));
 const sun = new THREE.DirectionalLight(0xffffff, 2.5);
-sun.position.set(35, 70, 20);
+sun.position.set(-35, 80, 25);
 sun.castShadow = true;
 scene.add(sun);
 
@@ -46,23 +46,119 @@ function readInput() {
 }
 
 const obstacles = [];
-const neutralMaterial = new THREE.MeshLambertMaterial({ color: 0x66727a });
-const roadMaterial = new THREE.MeshLambertMaterial({ color: 0x303b42 });
-const buildingSpecs = [
-  [-30, -30, 14, 18, 12], [-8, -30, 13, 30, 16], [17, -30, 16, 20, 12], [34, -30, 10, 38, 14],
-  [-30, -7, 18, 24, 13], [29, -7, 18, 32, 15], [-30, 17, 13, 34, 14], [-8, 18, 13, 18, 17],
-  [14, 17, 20, 28, 13], [34, 18, 10, 24, 12], [-30, 35, 15, 30, 12], [-8, 35, 14, 20, 14],
-  [16, 35, 17, 36, 12], [35, 35, 9, 28, 15]
-];
+const materials = {
+  asphalt: new THREE.MeshLambertMaterial({ color: 0x252d35 }),
+  sidewalk: new THREE.MeshLambertMaterial({ color: 0xd8d7ce }),
+  curb: new THREE.MeshLambertMaterial({ color: 0xb8b9b3 }),
+  grass: new THREE.MeshLambertMaterial({ color: 0x79a86a }),
+  concrete: new THREE.MeshLambertMaterial({ color: 0xe3e3dc }),
+  glass: new THREE.MeshLambertMaterial({ color: 0x8dbdce }),
+  glassDark: new THREE.MeshLambertMaterial({ color: 0x547d91 }),
+  frame: new THREE.MeshLambertMaterial({ color: 0x253641 }),
+  terracotta: new THREE.MeshLambertMaterial({ color: 0xa9665a }),
+  brick: new THREE.MeshLambertMaterial({ color: 0x8e514a }),
+  roof: new THREE.MeshLambertMaterial({ color: 0x52616a }),
+  roadMark: new THREE.MeshBasicMaterial({ color: 0xf5f1dc }),
+  yellowMark: new THREE.MeshBasicMaterial({ color: 0xd9b957 }),
+  trunk: new THREE.MeshLambertMaterial({ color: 0x76533e }),
+  canopy: new THREE.MeshLambertMaterial({ color: 0x4f935e }),
+  canopyLight: new THREE.MeshLambertMaterial({ color: 0x76ad68 }),
+  propDark: new THREE.MeshLambertMaterial({ color: 0x34434a }),
+  car: new THREE.MeshLambertMaterial({ color: 0xc8d2d4 }),
+  carAccent: new THREE.MeshLambertMaterial({ color: 0x6f9caf })
+};
+const decorBoxGeometry = new THREE.BoxGeometry(1, 1, 1);
 function addBox(position, size, material, isObstacle = true) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
-  mesh.position.set(...position); mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh);
+  mesh.position.set(...position); mesh.castShadow = isObstacle; mesh.receiveShadow = isObstacle; scene.add(mesh);
   if (isObstacle) obstacles.push({ mesh, minX: position[0] - size[0] / 2, maxX: position[0] + size[0] / 2, minZ: position[2] - size[2] / 2, maxZ: position[2] + size[2] / 2 });
   return mesh;
 }
-addBox([0, -0.35, 0], [tuning.arena.size, 0.5, tuning.arena.size], roadMaterial, false);
-for (const [x, z, width, height, depth] of buildingSpecs) addBox([x, height / 2, z], [width, height, depth], neutralMaterial);
-const grid = new THREE.GridHelper(tuning.arena.size, 16, 0x71818a, 0x4a575f); grid.position.y = 0.01; scene.add(grid);
+function addDecorBox(position, size, material) {
+  const mesh = new THREE.Mesh(decorBoxGeometry, material);
+  mesh.position.set(...position); mesh.scale.set(...size); mesh.receiveShadow = true; scene.add(mesh);
+  return mesh;
+}
+function addRoadMark(position, size, material = materials.roadMark) { addDecorBox(position, size, material); }
+function addTree(x, z, scale = 1) {
+  addDecorBox([x, 1.1 * scale, z], [0.22 * scale, 2.2 * scale, 0.22 * scale], materials.trunk);
+  const canopy = new THREE.Mesh(new THREE.DodecahedronGeometry(1.25 * scale, 1), Math.random() > 0.5 ? materials.canopy : materials.canopyLight);
+  canopy.position.set(x, 2.7 * scale, z); canopy.castShadow = true; scene.add(canopy);
+}
+function addStreetlight(x, z, rotation = 0) {
+  const pole = addDecorBox([x, 2.2, z], [0.12, 4.4, 0.12], materials.propDark); pole.rotation.y = rotation;
+  addDecorBox([x + Math.sin(rotation) * 0.55, 4.35, z + Math.cos(rotation) * 0.55], [1.1, 0.08, 0.08], materials.propDark);
+  addDecorBox([x + Math.sin(rotation) * 1.02, 4.22, z + Math.cos(rotation) * 1.02], [0.18, 0.12, 0.18], materials.concrete);
+}
+function addCrosswalk(x, z, horizontal = true) {
+  for (let i = -3; i <= 3; i += 1) addRoadMark(horizontal ? [x + i * 1.1, 0.035, z] : [x, 0.035, z + i * 1.1], horizontal ? [0.62, 0.025, 4.2] : [4.2, 0.025, 0.62]);
+}
+function addPark(x, z, width, depth) {
+  addDecorBox([x, 0.02, z], [width, 0.08, depth], materials.grass);
+  addDecorBox([x, 0.07, z], [Math.min(width - 1, 2), 0.03, depth], materials.sidewalk);
+  addDecorBox([x, 0.08, z], [width, 0.03, Math.min(depth - 1, 2)], materials.sidewalk);
+  const points = [[x - width * 0.32, z - depth * 0.28], [x + width * 0.3, z - depth * 0.22], [x - width * 0.25, z + depth * 0.3], [x + width * 0.28, z + depth * 0.28]];
+  points.forEach(([treeX, treeZ], index) => addTree(treeX, treeZ, 0.8 + (index % 2) * 0.12));
+  addDecorBox([x, 0.45, z], [1.2, 0.45, 0.18], materials.propDark);
+}
+function addFacadeGrid(x, z, width, height, depth, glassMaterial = materials.glass) {
+  for (const frontZ of [z - depth / 2 - 0.012, z + depth / 2 + 0.012]) {
+    for (let column = -1; column <= 1; column += 1) addDecorBox([x + column * width * 0.28, height * 0.52, frontZ], [0.08, height * 0.88, 0.05], materials.frame);
+    for (let floor = 1; floor < Math.max(2, Math.floor(height / 3)); floor += 1) addDecorBox([x, floor * 3, frontZ], [width * 0.88, 0.08, 0.05], materials.frame);
+    addDecorBox([x, height * 0.52, frontZ], [width * 0.94, height * 0.86, 0.03], glassMaterial);
+  }
+}
+function addBuilding({ x, z, width, depth, height, type = "glass", landmark = false }) {
+  const bodyMaterial = type === "warm" ? materials.terracotta : type === "concrete" ? materials.concrete : materials.glassDark;
+  addBox([x, height / 2, z], [width, height, depth], bodyMaterial);
+  if (type !== "concrete") addFacadeGrid(x, z, width, height, depth, type === "warm" ? materials.glass : materials.glass);
+  if (type === "concrete") {
+    for (let floor = 1; floor < Math.floor(height / 2.5); floor += 1) addDecorBox([x, floor * 2.5, z - depth / 2 - 0.02], [width * 0.76, 0.06, 0.05], materials.glassDark);
+  }
+  addDecorBox([x, height + 0.12, z], [width + 0.18, 0.25, depth + 0.18], materials.roof);
+  if (landmark) {
+    addDecorBox([x, height + 1.1, z], [width * 0.38, 1.8, depth * 0.38], materials.frame);
+    addDecorBox([x, height + 2.08, z], [width * 0.2, 0.12, depth * 0.2], materials.yellowMark);
+  } else {
+    addDecorBox([x - width * 0.22, height + 0.5, z + depth * 0.18], [width * 0.16, 0.5, depth * 0.18], materials.concrete);
+    addDecorBox([x + width * 0.2, height + 0.4, z - depth * 0.2], [width * 0.12, 0.4, depth * 0.12], materials.roof);
+  }
+}
+function addCar(x, z, rotation = 0, color = materials.car) {
+  const car = addDecorBox([x, 0.35, z], [1.4, 0.45, 2.7], color); car.rotation.y = rotation;
+  const window = addDecorBox([x, 0.63, z], [0.9, 0.18, 1.1], materials.carAccent); window.rotation.y = rotation;
+}
+
+addDecorBox([0, -0.35, 0], [tuning.arena.size, 0.5, tuning.arena.size], materials.asphalt);
+for (const axis of [-27, 0, 27]) {
+  addDecorBox([0, 0.005, axis], [tuning.arena.size, 0.03, axis === 0 ? 14 : 10], materials.asphalt);
+  addDecorBox([axis, 0.006, 0], [axis === 0 ? 14 : 10, 0.03, tuning.arena.size], materials.asphalt);
+}
+for (const coordinate of [-36, -18, 18, 36]) {
+  addDecorBox([coordinate, 0.04, -13], [10, 0.12, 4], materials.sidewalk);
+  addDecorBox([coordinate, 0.04, 13], [10, 0.12, 4], materials.sidewalk);
+  addDecorBox([-13, 0.04, coordinate], [4, 0.12, 10], materials.sidewalk);
+  addDecorBox([13, 0.04, coordinate], [4, 0.12, 10], materials.sidewalk);
+}
+for (let x = -40; x <= 40; x += 4) { addRoadMark([x, 0.04, 0], [2.1, 0.025, 0.12], materials.yellowMark); addRoadMark([x, 0.04, 27], [2.1, 0.025, 0.12], materials.roadMark); }
+for (let z = -40; z <= 40; z += 4) addRoadMark([0, 0.04, z], [0.12, 0.025, 2.1], materials.roadMark);
+[-27, 0, 27].forEach((coordinate) => { addCrosswalk(coordinate, -7, true); addCrosswalk(coordinate, 7, true); addCrosswalk(-7, coordinate, false); addCrosswalk(7, coordinate, false); });
+[-36, -18, 18, 36].forEach((coordinate) => { addStreetlight(coordinate, -8, 0); addStreetlight(-8, coordinate, Math.PI / 2); addTree(coordinate, -11, 0.72); addTree(11, coordinate, 0.72); });
+addPark(-22, 22, 13, 11); addPark(23, -22, 12, 12);
+addBuilding({ x: -22, z: -22, width: 9, depth: 9, height: 22, type: "glass" });
+addBuilding({ x: 22, z: -22, width: 10, depth: 8, height: 34, type: "glass", landmark: true });
+addBuilding({ x: -22, z: 22, width: 10, depth: 10, height: 13, type: "warm" });
+addBuilding({ x: 22, z: 22, width: 11, depth: 9, height: 18, type: "concrete" });
+addBuilding({ x: -34, z: -22, width: 6, depth: 8, height: 10, type: "warm" });
+addBuilding({ x: 34, z: -22, width: 7, depth: 8, height: 15, type: "glass" });
+addBuilding({ x: -34, z: 22, width: 7, depth: 8, height: 9, type: "concrete" });
+addBuilding({ x: 34, z: 22, width: 7, depth: 8, height: 12, type: "warm" });
+addBuilding({ x: -22, z: -36, width: 9, depth: 6, height: 11, type: "concrete" });
+addBuilding({ x: 22, z: -36, width: 9, depth: 6, height: 16, type: "glass" });
+addBuilding({ x: -22, z: 36, width: 9, depth: 6, height: 9, type: "warm" });
+addBuilding({ x: 22, z: 36, width: 10, depth: 6, height: 20, type: "glass" });
+addCar(-10, -4, 0); addCar(10, 4, Math.PI); addCar(-4, 10, Math.PI / 2, materials.terracotta); addCar(4, -10, -Math.PI / 2, materials.car);
+const grid = new THREE.GridHelper(tuning.arena.size, 16, 0xa7b6b4, 0xc2ceca); grid.position.y = 0.015; grid.material.opacity = 0.18; grid.material.transparent = true; scene.add(grid);
 const obstacleMeshes = obstacles.map((obstacle) => obstacle.mesh);
 
 function createMech(color) {
@@ -87,8 +183,8 @@ function createMech(color) {
 function createMechState(color, position, mode, yaw = 0) {
   return { object3D: createMech(color), position: position.clone(), velocity: new THREE.Vector3(), mode, health: tuning.player.health, gunCooldown: 0, missileCooldown: 0, dead: 0, deathEffect: 0, yaw, aiTimer: 0, aiDirection: new THREE.Vector3(1, 0, 0), botMissileTimer: 0 };
 }
-const player = createMechState(0x1988e8, new THREE.Vector3(-20, 0, 28), "combat");
-const bot = createMechState(0xe23d49, new THREE.Vector3(25, 0, -18), "glide", Math.PI);
+const player = createMechState(0x1988e8, new THREE.Vector3(0, 0, 27), "combat");
+const bot = createMechState(0xe23d49, new THREE.Vector3(0, 0, -27), "glide", Math.PI);
 player.object3D.position.copy(player.position); bot.object3D.position.copy(bot.position); bot.object3D.rotation.y = bot.yaw;
 
 function isBlocked(position, radius = tuning.arena.mechCollisionRadius) {
@@ -130,7 +226,7 @@ function updateMech(mech, intentions, delta, combatDirection = null) {
   mech.object3D.position.y = mech.mode === "glide" ? -0.25 : 0; mech.object3D.rotation.y = mech.yaw;
   mech.object3D.rotation.z = mech.mode === "glide" ? -THREE.MathUtils.clamp(mech.velocity.length() / tuning.player.glideMaxSpeed, 0, 0.18) : 0;
 }
-const spawnPoints = [new THREE.Vector3(-20, 0, 28), new THREE.Vector3(25, 0, -18), new THREE.Vector3(26, 0, 28), new THREE.Vector3(-20, 0, -18)];
+const spawnPoints = [new THREE.Vector3(0, 0, 27), new THREE.Vector3(0, 0, -27), new THREE.Vector3(27, 0, 0), new THREE.Vector3(-27, 0, 0)];
 function respawn(mech) {
   const spawn = spawnPoints[Math.floor(Math.random() * spawnPoints.length)]; mech.position.copy(spawn); mech.velocity.set(0, 0, 0); mech.health = tuning.player.health; mech.dead = 0; mech.deathEffect = 0;
   mech.object3D.visible = true; mech.object3D.scale.setScalar(1);

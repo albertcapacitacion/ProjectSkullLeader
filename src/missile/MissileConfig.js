@@ -1,6 +1,6 @@
 export const missileSwarmDefaults = {
   damage: 12,
-  missileCount: 32, launchInterval: 0.045, launchConeAngle: 0.72, initialSpeed: 13, maxSpeed: 46, acceleration: 30, terminalSpeedMultiplier: 1.08, lifetime: 6.5, proximityFuseRadius: 1.7,
+  missileCount: 32, launchInterval: 0.045, launchConeAngle: 0.72, launchSpreadMultiplier: 0.75, initialSpeed: 13, maxSpeed: 46, acceleration: 30, terminalSpeedMultiplier: 1.08, lifetime: 6.5, proximityFuseRadius: 1.7,
   spreadStrength: 1.9, spreadDuration: 0.42, spreadFalloff: 1.4, spreadVariation: 0.35,
   curlStrength: 2.8, curlFrequency: 0.85, curlStart: 0.16, curlPeak: 0.48, curlEnd: 0.82, curlAxisVariation: 0.8, curlAxisDrift: 0.22, clockwiseRatio: 0.5, curlStrengthVariation: 0.35, curlFrequencyVariation: 0.28, curlPhaseVariation: 6.28,
   homingStrength: 2.4, homingDelay: 0.28, homingRampDuration: 0.48, maxTurnRate: 0.95, terminalTurnRate: 3.8, terminalTurnRamp: 0.35,

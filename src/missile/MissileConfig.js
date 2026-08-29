@@ -6,10 +6,9 @@ export const missileSwarmDefaults = {
   homingStrength: 2.4, homingDelay: 0.28, homingRampDuration: 0.48, maxTurnRate: 0.95, terminalTurnRate: 3.8, terminalTurnRamp: 0.35,
   noiseStrength: 0.16, noiseFrequency: 1.4, speedVariation: 0.16, turnRateVariation: 0.22, timingVariation: 0.18,
   trailEnabled: true, trailPointCount: 64, trailSampleInterval: 0.025, trailLifetime: 1.8, trailOpacity: 0.72, trailFade: 1, trailQuality: 1,
-  targetMovementMode: "CURRENT BOT", targetSpeed: 8, targetMovementRadius: 16,
   missileScale: 1, showMissiles: true, showTarget: true, showLauncher: true,
-  showVelocityVectors: false, showDesiredDirection: false, showTargetVector: false, showSpreadVector: false, showCurlVector: false, showFinalSteeringVector: false, showLaunchCone: false, showTrailPoints: false,
-  maxActiveMissiles: 128, pixelRatioCap: 1.6, explosionQuality: 1,
+  showVelocityVectors: false, showDesiredDirection: false, showTargetVector: false, showSpreadVector: false, showCurlVector: false, showFinalSteeringVector: false,
+  maxActiveMissiles: 128,
   phaseLaunch: 1, phaseSpread: 1, phaseCurl: 1, phaseHoming: 1
 };
 

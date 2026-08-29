@@ -163,28 +163,113 @@ const obstacleMeshes = obstacles.map((obstacle) => obstacle.mesh);
 
 function createMech(color) {
   const root = new THREE.Group();
-  const material = new THREE.MeshLambertMaterial({ color });
-  const isPlayerColor = color === 0x1988e8;
-  const frontMaterial = new THREE.MeshLambertMaterial({ color: isPlayerColor ? 0x8fddff : 0xffa0a5 });
-  const backpackMaterial = new THREE.MeshLambertMaterial({ color: isPlayerColor ? 0x27353d : 0x5b2026 });
-  const sideAccentMaterial = new THREE.MeshLambertMaterial({ color: isPlayerColor ? 0xd7f4ff : 0xffd0d2 });
-  function addPart(geometry, position, partMaterial = material) { const mesh = new THREE.Mesh(geometry, partMaterial); mesh.position.set(...position); mesh.castShadow = true; root.add(mesh); }
-  addPart(new THREE.BoxGeometry(1.4, 1.7, 0.9), [0, 2.5, 0]); addPart(new THREE.BoxGeometry(0.75, 0.65, 0.7), [0, 3.75, 0]);
-  addPart(new THREE.BoxGeometry(0.42, 1.7, 0.5), [-1.05, 2.4, 0]); addPart(new THREE.BoxGeometry(0.42, 1.7, 0.5), [1.05, 2.4, 0]);
-  addPart(new THREE.BoxGeometry(0.55, 1.7, 0.62), [-0.45, 0.85, 0]); addPart(new THREE.BoxGeometry(0.55, 1.7, 0.62), [0.45, 0.85, 0]);
-  addPart(new THREE.BoxGeometry(1.9, 0.7, 0.5), [0, 2.9, -0.5], backpackMaterial);
-  addPart(new THREE.BoxGeometry(0.95, 0.42, 0.06), [0, 2.55, 0.46], frontMaterial);
-  addPart(new THREE.BoxGeometry(0.48, 0.16, 0.06), [0, 3.76, 0.36], frontMaterial);
-  addPart(new THREE.BoxGeometry(0.05, 1.15, 0.68), [0.71, 2.55, 0], sideAccentMaterial);
-  addPart(new THREE.BoxGeometry(0.18, 0.8, 0.26), [-0.68, 3.2, -0.58], backpackMaterial);
-  addPart(new THREE.BoxGeometry(0.18, 0.8, 0.26), [0.68, 3.2, -0.58], backpackMaterial);
+  const standingGroup = new THREE.Group();
+  const gerwalkGroup = new THREE.Group();
+  let buildTarget = standingGroup;
+  const base = new THREE.MeshLambertMaterial({ color });
+  const blue = new THREE.MeshLambertMaterial({ color: color === 0x1988e8 ? 0x1766c1 : 0xb42331 });
+  const light = new THREE.MeshLambertMaterial({ color: color === 0x1988e8 ? 0x9dc8f0 : 0xff9da4 });
+  const dark = new THREE.MeshLambertMaterial({ color: color === 0x1988e8 ? 0x202b36 : 0x431d22 });
+  const canopy = new THREE.MeshLambertMaterial({ color: color === 0x1988e8 ? 0x1652a1 : 0x7c1f2d });
+  const edge = new THREE.MeshLambertMaterial({ color: color === 0x1988e8 ? 0xd9eaff : 0xffd2d5 });
+  const gun = new THREE.MeshLambertMaterial({ color: 0x242b32 });
+  function add(geometry, position, material = base, rotation = null) {
+    const mesh = new THREE.Mesh(geometry, material); mesh.position.set(...position);
+    if (rotation) mesh.rotation.set(...rotation); mesh.castShadow = true; mesh.receiveShadow = true; buildTarget.add(mesh); return mesh;
+  }
+  function box(position, size, material = base, rotation = null) { const segments = buildTarget === standingGroup ? 2 : 1; return add(new THREE.BoxGeometry(size[0], size[1], size[2], segments, 1, 1), position, material, rotation); }
+  function mirrored(x, y, z, size, material = base, rotation = null) {
+    box([x, y, z], size, material, rotation);
+    box([-x, y, z], size, material, rotation ? [-rotation[0], rotation[1], -rotation[2]] : null);
+  }
+
+  // Standing combat/default configuration.
+  box([0, 2.95, 0], [1.75, 1.55, 1.05], base);
+  box([0, 3.45, 0.18], [1.45, 0.62, 0.8], light, [-0.1, 0, 0]);
+  box([0, 2.72, 0.58], [1.2, 0.7, 0.32], blue, [-0.08, 0, 0]);
+  box([0, 2.92, 0.78], [0.55, 0.28, 0.08], dark);
+  mirrored(0.52, 3.18, 0.62, [0.3, 0.34, 0.12], edge, [0.12, 0, -0.08]);
+  mirrored(0.76, 2.82, 0.2, [0.3, 0.66, 0.78], light, [0.05, 0, -0.08]);
+  box([0, 4.08, 0.04], [0.95, 0.75, 0.88], light, [-0.05, 0, 0]);
+  box([0, 3.92, 0.48], [0.62, 0.28, 0.12], canopy);
+  box([0, 4.22, -0.38], [0.72, 0.25, 0.5], blue);
+  box([0, 4.38, -0.05], [0.42, 0.18, 0.24], dark);
+  mirrored(0.68, 4.22, -0.12, [0.22, 0.62, 0.28], blue);
+  mirrored(0.66, 4.55, -0.08, [0.14, 0.55, 0.16], light);
+  box([0, 4.73, -0.03], [0.12, 0.42, 0.12], edge, [0, 0, -0.12]);
+  mirrored(1.17, 3.43, 0, [0.72, 0.76, 0.9], light, [0, 0, -0.08]);
+  mirrored(1.38, 3.18, 0.05, [0.28, 0.48, 0.62], blue, [0.08, 0, -0.08]);
+  mirrored(1.25, 2.72, 0, [0.42, 0.86, 0.5], base, [0.05, 0, -0.05]);
+  mirrored(1.22, 2.2, 0.1, [0.5, 0.56, 0.58], light, [0.12, 0, -0.06]);
+  mirrored(1.2, 1.82, 0.15, [0.38, 0.3, 0.38], dark);
+  mirrored(1.2, 1.62, 0.2, [0.34, 0.25, 0.34], blue);
+  mirrored(0.86, 3.9, -0.5, [0.3, 1.5, 0.36], dark, [0.08, 0, -0.04]);
+  mirrored(0.86, 4.48, -0.5, [0.22, 1.25, 0.3], blue, [0.02, 0, -0.04]);
+  for (const x of [-0.48, 0.48]) {
+    add(new THREE.CylinderGeometry(0.28, 0.34, 0.08, 10), [x, 4.02, -0.62], dark, [Math.PI / 2, 0, 0]);
+    add(new THREE.CylinderGeometry(0.22, 0.25, 0.06, 10), [x, 4.08, -0.66], edge, [Math.PI / 2, 0, 0]);
+  }
+  box([0, 2.0, 0], [1.45, 0.4, 0.85], dark);
+  mirrored(0.62, 2.05, 0.28, [0.5, 0.55, 0.55], light, [0.05, 0, -0.06]);
+  mirrored(0.9, 1.92, 0.28, [0.3, 0.48, 0.42], blue, [0.05, 0, -0.08]);
+  mirrored(0.58, 1.32, 0, [0.62, 1.0, 0.72], base);
+  mirrored(0.58, 1.16, 0.38, [0.5, 0.18, 0.48], edge);
+  mirrored(0.58, 0.66, 0.02, [0.66, 0.78, 0.78], light);
+  mirrored(0.58, 0.36, 0.38, [0.52, 0.24, 0.5], blue);
+  mirrored(0.58, 0.1, 0.52, [0.72, 0.2, 1.0], edge);
+  mirrored(0.58, 0.08, 1.05, [0.76, 0.18, 0.42], blue);
+  mirrored(0.58, 0.82, -0.34, [0.22, 0.54, 0.32], blue);
+  mirrored(0.58, 0.42, -0.34, [0.24, 0.48, 0.34], dark);
+  mirrored(1.45, 2.42, 0.08, [0.16, 1.35, 0.48], light, [0.04, 0, -0.08]);
+  box([1.64, 2.38, 0.38], [0.14, 1.1, 0.18], blue);
+  // One continuous beveled rifle silhouette; the receiver, stock and barrel share one mesh.
+  const rifleProfile = new THREE.Shape();
+  rifleProfile.moveTo(-0.28, -1.92); rifleProfile.lineTo(0.24, -1.92); rifleProfile.lineTo(0.24, -0.55);
+  rifleProfile.lineTo(0.38, -0.28); rifleProfile.lineTo(0.22, 0.02); rifleProfile.lineTo(0.24, 1.22);
+  rifleProfile.lineTo(0.13, 1.62); rifleProfile.lineTo(-0.14, 1.62); rifleProfile.lineTo(-0.22, 0.45);
+  rifleProfile.lineTo(-0.38, 0.18); rifleProfile.lineTo(-0.24, -0.18); rifleProfile.closePath();
+  add(new THREE.ExtrudeGeometry(rifleProfile, { depth: 0.34, steps: 1, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.045, bevelThickness: 0.045 }), [-1.52, 1.92, 0.25], gun);
+
+  // Separate Gerwalk/sliding configuration, based on the earlier transformed jet-mech silhouette.
+  buildTarget = gerwalkGroup;
+  box([0, 2.45, -0.25], [1.8, 1.1, 2.6], base, [0.14, 0, 0]);
+  const nose = add(new THREE.ConeGeometry(0.5, 1, 5), [0, 2.65, 1.3], light, [Math.PI / 2, 0, 0]); nose.scale.set(1.65, 1.35, 2.4);
+  box([0, 3.2, 0.25], [1.05, 0.72, 1.35], canopy, [0.16, 0, 0]);
+  box([0, 3.02, 1.15], [0.7, 0.36, 0.62], blue, [0.25, 0, 0]);
+  box([0, 2.05, 1.62], [0.5, 0.45, 1.0], blue, [0.34, 0, 0]);
+  box([0, 2.7, -1.72], [1.45, 1.05, 0.7], dark);
+  mirrored(1.02, 2.55, -0.15, [0.35, 0.95, 1.9], light, [0.08, 0.12, -0.12]);
+  mirrored(1.4, 2.65, 0.65, [0.22, 0.48, 1.25], blue, [0.08, 0.18, -0.2]);
+  mirrored(2.0, 2.6, -0.15, [2.35, 0.16, 0.72], light, [0.12, 0.16, -0.08]);
+  mirrored(2.55, 2.52, 0.45, [1.8, 0.13, 0.42], blue, [0.18, 0.3, -0.16]);
+  mirrored(1.0, 3.65, -0.92, [0.28, 1.9, 0.65], light, [-0.18, 0, -0.1]);
+  mirrored(0.58, 3.74, -1.18, [0.18, 1.1, 0.4], blue, [-0.3, 0, -0.08]);
+  mirrored(0.72, 1.45, -0.35, [0.62, 1.3, 0.72], dark, [0.18, 0, -0.18]);
+  mirrored(0.98, 0.9, 0.25, [0.72, 1.18, 0.9], light, [-0.18, 0, -0.18]);
+  mirrored(1.05, 0.34, 1.05, [0.72, 0.5, 1.15], blue, [0.08, 0, -0.1]);
+  mirrored(1.0, 0.18, 1.75, [0.95, 0.3, 1.2], edge, [0.02, 0, -0.1]);
+  mirrored(1.0, 0.1, 2.18, [1.0, 0.22, 0.45], blue, [0, 0, -0.08]);
+  for (const x of [-0.55, 0.55]) {
+    add(new THREE.CylinderGeometry(0.42, 0.5, 0.72, 10), [x, 2.6, -2.0], dark, [Math.PI / 2, 0, 0]);
+    add(new THREE.CylinderGeometry(0.24, 0.32, 0.04, 10), [x, 2.6, -2.38], blue, [Math.PI / 2, 0, 0]);
+  }
+  box([0, 2.72, -2.05], [1.55, 0.95, 0.42], dark);
+  mirrored(0.48, 3.45, -1.7, [0.22, 1.18, 0.45], edge, [0.1, 0, -0.08]);
+  box([1.95, 2.3, 1.65], [0.38, 0.4, 1.85], gun, [0.06, 0, 0]);
+  box([1.95, 2.25, 2.72], [0.28, 0.28, 0.75], gun);
+  box([1.95, 2.48, 1.55], [0.6, 0.22, 0.38], dark);
+
+  root.add(standingGroup, gerwalkGroup);
+  root.userData.standingGroup = standingGroup;
+  root.userData.gerwalkGroup = gerwalkGroup;
+  root.userData.pose = "standing";
+  gerwalkGroup.visible = false;
   scene.add(root); return root;
-}
-function createMechState(color, position, mode, yaw = 0) {
+}function createMechState(color, position, mode, yaw = 0) {
   return { object3D: createMech(color), position: position.clone(), velocity: new THREE.Vector3(), mode, health: tuning.player.health, gunCooldown: 0, missileCooldown: 0, dead: 0, deathEffect: 0, yaw, aiTimer: 0, aiDirection: new THREE.Vector3(1, 0, 0), botMissileTimer: 0 };
 }
 const player = createMechState(0x1988e8, new THREE.Vector3(0, 0, 27), "combat");
-const bot = createMechState(0xe23d49, new THREE.Vector3(0, 0, -27), "glide", Math.PI);
+const bot = createMechState(0xe23d49, new THREE.Vector3(0, 0, -27), "combat", Math.PI);
 player.object3D.position.copy(player.position); bot.object3D.position.copy(bot.position); bot.object3D.rotation.y = bot.yaw;
 
 function isBlocked(position, radius = tuning.arena.mechCollisionRadius) {
@@ -223,8 +308,14 @@ function updateMech(mech, intentions, delta, combatDirection = null) {
     if (mech.velocity.length() > tuning.player.glideMaxSpeed) mech.velocity.setLength(tuning.player.glideMaxSpeed);
   }
   moveWithCollision(mech, mech.velocity.clone().multiplyScalar(delta)); mech.object3D.position.copy(mech.position);
-  mech.object3D.position.y = mech.mode === "glide" ? -0.25 : 0; mech.object3D.rotation.y = mech.yaw;
-  mech.object3D.rotation.z = mech.mode === "glide" ? -THREE.MathUtils.clamp(mech.velocity.length() / tuning.player.glideMaxSpeed, 0, 0.18) : 0;
+  const gerwalk = mech.mode === "glide";
+  mech.object3D.position.y = gerwalk ? -0.08 : 0; mech.object3D.rotation.y = mech.yaw;
+  mech.object3D.rotation.x = gerwalk ? 0.12 : 0;
+  mech.object3D.rotation.z = gerwalk ? -THREE.MathUtils.clamp(mech.velocity.length() / tuning.player.glideMaxSpeed, 0, 0.18) : 0;
+  mech.object3D.scale.set(1, 1, 1);
+  mech.object3D.userData.standingGroup.visible = !gerwalk;
+  mech.object3D.userData.gerwalkGroup.visible = gerwalk;
+  mech.object3D.userData.pose = gerwalk ? "gerwalk" : "standing";
 }
 const spawnPoints = [new THREE.Vector3(0, 0, 27), new THREE.Vector3(0, 0, -27), new THREE.Vector3(27, 0, 0), new THREE.Vector3(-27, 0, 0)];
 function respawn(mech) {
@@ -376,3 +467,12 @@ function animate() {
 }
 addEventListener("resize", () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 camera.position.set(-27, 8, 35); animate();
+
+
+
+
+
+
+
+
+

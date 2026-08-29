@@ -1,10 +1,13 @@
 import * as THREE from "three";
+import { MissileSystem } from "./missile/MissileSystem.js";
+import { missileSwarmDefaults, missileSwarmPresets } from "./missile/MissileConfig.js";
 
 const tuningDefaults = {
   player: { health: 100, combatSpeed: 12, combatAcceleration: 52, combatFriction: 34, glideAcceleration: 30, glideMaxSpeed: 45, glideSteering: 2.8, glideFriction: 4, combatMomentumRetention: 0.55 },
   camera: { distance: 8, height: 3.2, rotateSpeed: 2.0, pitchSpeed: 1.2, followSpeed: 8 },
   gun: { damage: 5, fireRate: 10, projectileSpeed: 80, closeSpread: 0.01, farSpread: 0.08, assistStrength: 0.6, assistMaxRange: 100, assistAngle: 0.65 },
   missiles: { damage: 25, cooldown: 2, volleySize: 2, speed: 35, turnRate: 2.5, closeHoming: 0.9, farHoming: 0.25, closeRange: 30, farRange: 120 },
+  swarm: { ...missileSwarmDefaults },
   arena: { size: 86, mechCollisionRadius: 1.1 },
   radar: { range: 80 },
   bot: { directionChangeMin: 1.3, directionChangeMax: 3.8, steeringRate: 0.9, gunChance: 0.7, missileChance: 0.2, missileInterval: 2.5 },
@@ -28,7 +31,7 @@ sun.position.set(-35, 80, 25);
 sun.castShadow = true;
 scene.add(sun);
 
-const input = { moveX: 0, moveY: 0, cameraX: 0, cameraY: 0, fireGun: false, fireMissile: false, switchMode: false };
+const input = { moveX: 0, moveY: 0, cameraX: 0, cameraY: 0, fireGun: false, fireMissile: false, fireSwarm: false, switchMode: false };
 const keys = new Set();
 addEventListener("keydown", (event) => {
   keys.add(event.code);
@@ -42,6 +45,7 @@ function readInput() {
   input.cameraY = (keys.has("ArrowUp") ? 1 : 0) - (keys.has("ArrowDown") ? 1 : 0);
   input.fireGun = keys.has("KeyU");
   input.fireMissile = keys.has("KeyI");
+  input.fireSwarm = keys.has("KeyO");
   input.switchMode = keys.has("Space");
 }
 
@@ -230,7 +234,7 @@ function createMech(color) {
   rifleProfile.lineTo(0.38, -0.28); rifleProfile.lineTo(0.22, 0.02); rifleProfile.lineTo(0.24, 1.22);
   rifleProfile.lineTo(0.13, 1.62); rifleProfile.lineTo(-0.14, 1.62); rifleProfile.lineTo(-0.22, 0.45);
   rifleProfile.lineTo(-0.38, 0.18); rifleProfile.lineTo(-0.24, -0.18); rifleProfile.closePath();
-  add(new THREE.ExtrudeGeometry(rifleProfile, { depth: 0.34, steps: 1, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.045, bevelThickness: 0.045 }), [-1.52, 1.92, 0.25], gun);
+  add(new THREE.ExtrudeGeometry(rifleProfile, { depth: 0.34, steps: 1, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.045, bevelThickness: 0.045 }), [-1.22, 2.02, 0.1], gun, [Math.PI / 2, 0, 0]);
 
   // Separate Gerwalk/sliding configuration, based on the earlier transformed jet-mech silhouette.
   buildTarget = gerwalkGroup;
@@ -362,6 +366,8 @@ function damage(mech, amount) {
   if (mech.health === 0) { mech.dead = tuning.respawn.delay; mech.deathEffect = tuning.respawn.deathEffectDuration; mech.velocity.set(0, 0, 0); showMessage("MECH DESTROYED"); }
 }
 
+const missileSwarm = new MissileSystem({ scene, obstacles: obstacleMeshes, launcher: player, target: bot, config: tuning.swarm, onHit: damage, onMessage: showMessage });
+
 const raycaster = new THREE.Raycaster();
 function hasLineOfSight(from, to) {
   const direction = to.clone().sub(from); const distance = direction.length(); if (distance === 0) return true;
@@ -442,7 +448,7 @@ function updateBot(delta) {
   if (bot.botMissileTimer <= 0 && Math.random() < delta * tuning.bot.missileChance) { fireMissiles(bot, player); bot.botMissileTimer = tuning.bot.missileInterval; }
 }
 
-let cameraYaw = 0.7; let cameraPitch = 0.22; let lastSpace = false; let lastMissile = false; let messageTimer = 0;
+let cameraYaw = 0.7; let cameraPitch = 0.22; let lastSpace = false; let lastMissile = false; let lastSwarm = false; let messageTimer = 0;
 const poseCycle = ["standing", "gerwalk", "airplane", "gerwalk"];
 let poseCycleIndex = previewPose === "airplane" ? 2 : 0;
 function applyCyclePose() {
@@ -475,6 +481,8 @@ function createTuningUI() {
     const groupElement = document.createElement("div"); groupElement.className = "tuning-group"; groupElement.innerHTML = `<h3>${groupName.toUpperCase()}</h3>`;
     for (const [name, value] of Object.entries(group)) {
       const field = document.createElement("div"); field.className = "tuning-field"; const label = document.createElement("label"); label.textContent = name;
+      if (typeof value === "boolean") { const inputElement = document.createElement("input"); inputElement.type = "checkbox"; inputElement.checked = value; inputElement.dataset.group = groupName; inputElement.dataset.name = name; inputElement.addEventListener("change", () => { tuning[groupName][name] = inputElement.checked; }); field.append(label, inputElement); groupElement.append(field); continue; }
+      if (typeof value === "string") { const inputElement = document.createElement("input"); inputElement.type = "text"; inputElement.value = value; inputElement.dataset.group = groupName; inputElement.dataset.name = name; inputElement.addEventListener("input", () => { tuning[groupName][name] = inputElement.value; }); field.append(label, inputElement); groupElement.append(field); continue; }
       const number = document.createElement("input"); number.type = "number"; number.step = "any"; number.min = name === "health" ? "1" : "0"; number.value = value;
       const range = document.createElement("input"); range.type = "range"; range.min = number.min; range.max = Math.max(value * 3, 1); range.step = "any"; range.value = value;
       number.dataset.group = range.dataset.group = groupName; number.dataset.name = range.dataset.name = name; field.append(label, number, range); groupElement.append(field);
@@ -483,11 +491,16 @@ function createTuningUI() {
     }
     container.append(groupElement);
   }
-}
-function syncTuningUI() { document.querySelectorAll("#tuning-controls input").forEach((inputElement) => { const value = tuning[inputElement.dataset.group][inputElement.dataset.name]; inputElement.value = value; if (inputElement.type === "range") inputElement.max = Math.max(Number(inputElement.max), value, 1); }); }
+}function syncTuningUI() { document.querySelectorAll("#tuning-controls input").forEach((inputElement) => { const value = tuning[inputElement.dataset.group][inputElement.dataset.name]; if (inputElement.type === "checkbox") inputElement.checked = value; else inputElement.value = value; if (inputElement.type === "range") inputElement.max = Math.max(Number(inputElement.max), value, 1); }); }
 document.querySelector("#tuning-toggle").addEventListener("click", () => { const panel = document.querySelector("#tuning-panel"); panel.classList.toggle("collapsed"); document.querySelector("#tuning-toggle span").textContent = panel.classList.contains("collapsed") ? "+" : "−"; });
 document.querySelector("#reset-tuning").addEventListener("click", () => { for (const [group, values] of Object.entries(tuningDefaults)) Object.assign(tuning[group], structuredClone(values)); player.health = tuning.player.health; bot.health = tuning.player.health; syncTuningUI(); showMessage("TUNING RESET"); });
 document.querySelector("#copy-tuning").addEventListener("click", async () => { try { await navigator.clipboard.writeText(JSON.stringify(tuning, null, 2)); showMessage("TUNING COPIED"); } catch { showMessage("COPY BLOCKED"); } });
+document.querySelector("#swarm-fire").addEventListener("click", () => missileSwarm.fireVolley());
+document.querySelector("#swarm-clear").addEventListener("click", () => missileSwarm.clear());
+document.querySelector("#swarm-copy").addEventListener("click", async () => { try { await navigator.clipboard.writeText(JSON.stringify(tuning.swarm, null, 2)); showMessage("SWARM CONFIG COPIED"); } catch { showMessage("COPY BLOCKED"); } });
+document.querySelector("#swarm-load").addEventListener("click", () => { const text = window.prompt("Paste missile swarm JSON"); if (!text) return; try { Object.assign(tuning.swarm, JSON.parse(text)); syncTuningUI(); showMessage("SWARM CONFIG LOADED"); } catch { showMessage("INVALID CONFIG"); } });
+Object.entries(missileSwarmPresets).forEach(([name, values]) => { const button = document.querySelector(`[data-swarm-preset="${name}"]`); if (button) button.addEventListener("click", () => { Object.assign(tuning.swarm, structuredClone(values)); syncTuningUI(); showMessage(name); }); });
+
 createTuningUI();
 
 const clock = new THREE.Clock(); let frameCounter = 0; let fpsTimer = 0; let fps = 0;
@@ -495,18 +508,18 @@ function updateHUD(delta) {
   frameCounter += 1; fpsTimer += delta; if (fpsTimer >= 1) { fps = frameCounter; frameCounter = 0; fpsTimer = 0; }
   const distance = player.position.distanceTo(bot.position); const set = (id, value) => { document.querySelector(id).textContent = value; };
   set("#mode", player.mode.toUpperCase()); set("#speed", player.velocity.length().toFixed(1)); set("#distance", distance.toFixed(1)); set("#fps", fps);
-  set("#gun-status", player.gunCooldown > 0 ? player.gunCooldown.toFixed(1) : "READY"); set("#missile-status", player.missileCooldown > 0 ? player.missileCooldown.toFixed(1) : "READY"); set("#player-health-text", Math.ceil(player.health)); set("#bot-health-text", Math.ceil(bot.health));
+  set("#gun-status", player.gunCooldown > 0 ? player.gunCooldown.toFixed(1) : "READY"); set("#missile-status", `${missileSwarm.activeCount}/${tuning.swarm.missileCount}`); set("#player-health-text", Math.ceil(player.health)); set("#bot-health-text", Math.ceil(bot.health));
   const healthMaximum = Math.max(tuning.player.health, 1); document.querySelector("#player-health").style.width = `${Math.max(0, player.health / healthMaximum * 100)}%`; document.querySelector("#bot-health").style.width = `${Math.max(0, bot.health / healthMaximum * 100)}%`;
   document.querySelector("#reticle").style.borderColor = distance < tuning.gun.assistMaxRange * 0.35 ? "#fff" : "rgba(255,255,255,.55)";
-  updateRadar();
+  updateRadar(); const swarmStats = document.querySelector("#swarm-stats"); if (swarmStats) swarmStats.textContent = `SWARM ${missileSwarm.activeCount} · TRAIL VERTICES ${missileSwarm.trailVertices} · DRAW CALLS ${renderer.info.render.calls}`;
 }
 function animate() {
   requestAnimationFrame(animate); const delta = Math.min(clock.getDelta(), 0.05); readInput();
   if (messageTimer > 0) { messageTimer -= delta; if (messageTimer <= 0) document.querySelector("#message").style.opacity = "0"; }
   if (input.switchMode && !lastSpace && player.dead <= 0) { poseCycleIndex = (poseCycleIndex + 1) % poseCycle.length; applyCyclePose(); } lastSpace = input.switchMode;
-  if (input.fireMissile && !lastMissile) fireMissiles(player, bot); lastMissile = input.fireMissile; player.gunCooldown -= delta; player.missileCooldown -= delta;
+  if (input.fireMissile && !lastMissile) fireMissiles(player, bot); lastMissile = input.fireMissile; if (input.fireSwarm && !lastSwarm) missileSwarm.fireVolley(); lastSwarm = input.fireSwarm; player.gunCooldown -= delta; player.missileCooldown -= delta;
   const playerCombatDirection = getCombatDirection(input, cameraYaw); updateMech(player, input, delta, playerCombatDirection); if (input.fireGun) fireGun(player, bot);
-  updateBot(delta); updateProjectiles(delta); updateCamera(delta); updateHUD(delta); renderer.render(scene, camera);
+  updateBot(delta); updateProjectiles(delta); missileSwarm.update(delta); updateCamera(delta); updateHUD(delta); renderer.render(scene, camera);
 }
 addEventListener("resize", () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 camera.position.set(-27, 8, 35); animate();

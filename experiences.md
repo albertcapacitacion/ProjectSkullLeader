@@ -15,3 +15,9 @@
 ## 2026-08-21 — Decorative mesh performance fix
 
 - Decorative boxes now share one unit-box geometry and do not cast shadows; collision buildings retain their own geometry and shadow casting.
+
+## 2026-08-29 — Missile swarm prototype branch
+
+- The missile swarm is isolated in src/missile/ and triggered temporarily with O; the existing U/I weapons remain unchanged.
+- The swarm uses pooled low-poly missiles, bounded trail histories, persistent curl axes, seeded variation, and limited-turn dynamic homing.
+

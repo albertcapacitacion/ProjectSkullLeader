@@ -1,10 +1,13 @@
 import * as THREE from "three";
+import { MissileSystem } from "./missile/MissileSystem.js";
+import { missileSwarmDefaults, missileSwarmPresets } from "./missile/MissileConfig.js";
 
 const tuningDefaults = {
   player: { health: 100, combatSpeed: 12, combatAcceleration: 52, combatFriction: 34, glideAcceleration: 30, glideMaxSpeed: 45, glideSteering: 2.8, glideFriction: 4, combatMomentumRetention: 0.55 },
   camera: { distance: 8, height: 3.2, rotateSpeed: 2.0, pitchSpeed: 1.2, followSpeed: 8 },
   gun: { damage: 5, fireRate: 10, projectileSpeed: 80, closeSpread: 0.01, farSpread: 0.08, assistStrength: 0.6, assistMaxRange: 100, assistAngle: 0.65 },
   missiles: { damage: 25, cooldown: 2, volleySize: 2, speed: 35, turnRate: 2.5, closeHoming: 0.9, farHoming: 0.25, closeRange: 30, farRange: 120 },
+  swarm: { ...missileSwarmDefaults },
   arena: { size: 86, mechCollisionRadius: 1.1 },
   radar: { range: 80 },
   bot: { directionChangeMin: 1.3, directionChangeMax: 3.8, steeringRate: 0.9, gunChance: 0.7, missileChance: 0.2, missileInterval: 2.5 },
@@ -28,7 +31,7 @@ sun.position.set(-35, 80, 25);
 sun.castShadow = true;
 scene.add(sun);
 
-const input = { moveX: 0, moveY: 0, cameraX: 0, cameraY: 0, fireGun: false, fireMissile: false, switchMode: false };
+const input = { moveX: 0, moveY: 0, cameraX: 0, cameraY: 0, fireGun: false, fireMissile: false, fireSwarm: false, switchMode: false };
 const keys = new Set();
 addEventListener("keydown", (event) => {
   keys.add(event.code);
@@ -42,6 +45,7 @@ function readInput() {
   input.cameraY = (keys.has("ArrowUp") ? 1 : 0) - (keys.has("ArrowDown") ? 1 : 0);
   input.fireGun = keys.has("KeyU");
   input.fireMissile = keys.has("KeyI");
+  input.fireSwarm = keys.has("KeyO");
   input.switchMode = keys.has("Space");
 }
 
@@ -165,6 +169,8 @@ function createMech(color) {
   const root = new THREE.Group();
   const standingGroup = new THREE.Group();
   const gerwalkGroup = new THREE.Group();
+  // Additive aircraft pose; standing and gerwalk remain unchanged.
+  const airplaneGroup = new THREE.Group();
   let buildTarget = standingGroup;
   const base = new THREE.MeshLambertMaterial({ color });
   const blue = new THREE.MeshLambertMaterial({ color: color === 0x1988e8 ? 0x1766c1 : 0xb42331 });
@@ -228,7 +234,7 @@ function createMech(color) {
   rifleProfile.lineTo(0.38, -0.28); rifleProfile.lineTo(0.22, 0.02); rifleProfile.lineTo(0.24, 1.22);
   rifleProfile.lineTo(0.13, 1.62); rifleProfile.lineTo(-0.14, 1.62); rifleProfile.lineTo(-0.22, 0.45);
   rifleProfile.lineTo(-0.38, 0.18); rifleProfile.lineTo(-0.24, -0.18); rifleProfile.closePath();
-  add(new THREE.ExtrudeGeometry(rifleProfile, { depth: 0.34, steps: 1, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.045, bevelThickness: 0.045 }), [-1.52, 1.92, 0.25], gun);
+  add(new THREE.ExtrudeGeometry(rifleProfile, { depth: 0.34, steps: 1, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.045, bevelThickness: 0.045 }), [-1.22, 2.02, 0.1], gun, [Math.PI / 2, 0, 0]);
 
   // Separate Gerwalk/sliding configuration, based on the earlier transformed jet-mech silhouette.
   buildTarget = gerwalkGroup;
@@ -259,17 +265,46 @@ function createMech(color) {
   box([1.95, 2.25, 2.72], [0.28, 0.28, 0.75], gun);
   box([1.95, 2.48, 1.55], [0.6, 0.22, 0.38], dark);
 
-  root.add(standingGroup, gerwalkGroup);
+  // Aircraft mode: forward needle nose, faceted canopy, swept wings, twin engines, fins, and weapon rails.
+  buildTarget = airplaneGroup;
+  function aircraftBox(position, size, material = base, rotation = null) { return add(new THREE.BoxGeometry(...size), position, material, rotation); }
+  function aircraftWing(side, material) {
+    const s = side; const shape = new THREE.Shape();
+    shape.moveTo(0, 0); shape.lineTo(s * 1.1, 0.02); shape.lineTo(s * 3.7, -0.52); shape.lineTo(s * 4.45, -0.76);
+    shape.lineTo(s * 4.12, -0.98); shape.lineTo(s * 1.35, -0.68); shape.lineTo(s * 0.32, -0.26); shape.closePath();
+    const wing = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.14, bevelEnabled: true, bevelSegments: 1, bevelSize: 0.025, bevelThickness: 0.025 }), material);
+    wing.rotation.x = Math.PI / 2; wing.position.set(0, 2.45, 0.12); wing.castShadow = true; wing.receiveShadow = true; airplaneGroup.add(wing);
+  }
+  aircraftBox([0, 2.65, 0.62], [1.5, 0.82, 2.65], light, [0.08, 0, 0]);
+  aircraftBox([0, 2.7, 1.92], [0.72, 0.55, 1.35], light, [0.2, 0, 0]);
+  const aircraftNose = add(new THREE.ConeGeometry(0.62, 2.45, 5), [0, 2.62, 3.35], light, [Math.PI / 2, 0, 0]); aircraftNose.scale.set(1.2, 0.82, 1);
+  aircraftBox([0, 3.16, 1.15], [0.82, 0.32, 1.2], blue, [0.18, 0, 0]);
+  aircraftBox([0, 3.38, 0.28], [0.9, 0.52, 1.08], canopy, [0.08, 0, 0]);
+  aircraftBox([0, 3.48, -0.36], [0.72, 0.34, 0.6], canopy, [0.02, 0, 0]);
+  aircraftBox([0, 2.38, 0.05], [2.0, 0.42, 1.72], light, [0.04, 0, 0]); aircraftWing(-1, light); aircraftWing(1, light);
+  mirrored(3.88, 2.38, -0.52, [0.62, 0.16, 0.56], blue, [0.05, 0, -0.18]); mirrored(2.25, 2.58, 0.12, [0.72, 0.18, 0.64], blue, [0.02, 0, -0.1]);
+  mirrored(1.45, 2.78, 0.82, [0.26, 0.16, 0.9], dark, [0.1, 0, -0.04]); mirrored(0.92, 2.65, -1.38, [0.74, 0.82, 1.7], light, [0.03, 0, 0]);
+  for (const x of [-0.86, 0.86]) { add(new THREE.CylinderGeometry(0.52, 0.62, 0.72, 10), [x, 2.62, -2.26], dark, [Math.PI / 2, 0, 0]); add(new THREE.CylinderGeometry(0.34, 0.41, 0.08, 10), [x, 2.62, -2.64], blue, [Math.PI / 2, 0, 0]); add(new THREE.CylinderGeometry(0.22, 0.28, 0.1, 10), [x, 2.62, -2.69], dark, [Math.PI / 2, 0, 0]); }
+  aircraftBox([0, 2.82, -1.55], [1.5, 0.86, 0.86], dark); mirrored(0.68, 3.55, -1.02, [0.22, 1.95, 0.58], light, [0.05, 0, -0.16]); mirrored(0.68, 3.86, -1.1, [0.16, 1.25, 0.38], blue, [0.05, 0, -0.16]);
+  mirrored(1.62, 1.92, 0.32, [0.3, 0.28, 1.55], dark, [0.04, 0, -0.06]); mirrored(1.62, 1.78, 1.24, [0.42, 0.3, 0.84], gun, [0.03, 0, -0.06]); mirrored(2.15, 1.9, -0.25, [0.3, 0.32, 1.32], blue, [0.04, 0, -0.1]);
+  for (const x of [-0.58, 0.58]) for (const z of [0.05, 0.72, 1.38]) add(new THREE.CylinderGeometry(0.045, 0.045, 0.035, 6), [x, 3.08, z], dark, [Math.PI / 2, 0, 0]);  root.add(standingGroup, gerwalkGroup, airplaneGroup);
   root.userData.standingGroup = standingGroup;
   root.userData.gerwalkGroup = gerwalkGroup;
+  root.userData.airplaneGroup = airplaneGroup;
+  root.userData.poseGroups = { standing: standingGroup, gerwalk: gerwalkGroup, airplane: airplaneGroup };
+  root.userData.setPose = (pose) => { standingGroup.visible = pose === "standing"; gerwalkGroup.visible = pose === "gerwalk"; airplaneGroup.visible = pose === "airplane"; root.userData.pose = pose; };
   root.userData.pose = "standing";
   gerwalkGroup.visible = false;
+  airplaneGroup.visible = false;
+  root.userData.tick = (time, delta) => { airplaneGroup.rotation.y = Math.sin(time * 0.8) * 0.012; airplaneGroup.position.y = Math.sin(time * 1.6) * 0.025; return delta; };
   scene.add(root); return root;
 }function createMechState(color, position, mode, yaw = 0) {
   return { object3D: createMech(color), position: position.clone(), velocity: new THREE.Vector3(), mode, health: tuning.player.health, gunCooldown: 0, missileCooldown: 0, dead: 0, deathEffect: 0, yaw, aiTimer: 0, aiDirection: new THREE.Vector3(1, 0, 0), botMissileTimer: 0 };
 }
 const player = createMechState(0x1988e8, new THREE.Vector3(0, 0, 27), "combat");
 const bot = createMechState(0xe23d49, new THREE.Vector3(0, 0, -27), "combat", Math.PI);
+const previewPose = new URLSearchParams(location.search).get("pose");
+if (previewPose === "airplane") { player.object3D.userData.previewPose = "airplane"; bot.object3D.userData.previewPose = "airplane"; }
 player.object3D.position.copy(player.position); bot.object3D.position.copy(bot.position); bot.object3D.rotation.y = bot.yaw;
 
 function isBlocked(position, radius = tuning.arena.mechCollisionRadius) {
@@ -308,14 +343,18 @@ function updateMech(mech, intentions, delta, combatDirection = null) {
     if (mech.velocity.length() > tuning.player.glideMaxSpeed) mech.velocity.setLength(tuning.player.glideMaxSpeed);
   }
   moveWithCollision(mech, mech.velocity.clone().multiplyScalar(delta)); mech.object3D.position.copy(mech.position);
-  const gerwalk = mech.mode === "glide";
+  const selectedPose = mech.object3D.userData.poseOverride || mech.object3D.userData.previewPose;
+  const previewAirplane = selectedPose === "airplane";
+  const gerwalk = selectedPose ? selectedPose === "gerwalk" || selectedPose === "airplane" : mech.mode === "glide";
   mech.object3D.position.y = gerwalk ? -0.08 : 0; mech.object3D.rotation.y = mech.yaw;
   mech.object3D.rotation.x = gerwalk ? 0.12 : 0;
   mech.object3D.rotation.z = gerwalk ? -THREE.MathUtils.clamp(mech.velocity.length() / tuning.player.glideMaxSpeed, 0, 0.18) : 0;
   mech.object3D.scale.set(1, 1, 1);
-  mech.object3D.userData.standingGroup.visible = !gerwalk;
-  mech.object3D.userData.gerwalkGroup.visible = gerwalk;
-  mech.object3D.userData.pose = gerwalk ? "gerwalk" : "standing";
+  mech.object3D.userData.standingGroup.visible = !gerwalk && !previewAirplane;
+  mech.object3D.userData.airplaneGroup.visible = previewAirplane;
+  mech.object3D.userData.gerwalkGroup.visible = gerwalk && !previewAirplane;
+  mech.object3D.userData.pose = previewAirplane ? "airplane" : (gerwalk ? "gerwalk" : "standing");
+  if (typeof mech.object3D.userData.tick === "function") mech.object3D.userData.tick(performance.now() * 0.001, delta);
 }
 const spawnPoints = [new THREE.Vector3(0, 0, 27), new THREE.Vector3(0, 0, -27), new THREE.Vector3(27, 0, 0), new THREE.Vector3(-27, 0, 0)];
 function respawn(mech) {
@@ -326,6 +365,8 @@ function damage(mech, amount) {
   if (mech.dead > 0) return; mech.health = Math.max(0, mech.health - amount);
   if (mech.health === 0) { mech.dead = tuning.respawn.delay; mech.deathEffect = tuning.respawn.deathEffectDuration; mech.velocity.set(0, 0, 0); showMessage("MECH DESTROYED"); }
 }
+
+const missileSwarm = new MissileSystem({ scene, obstacles: obstacleMeshes, launcher: player, target: bot, config: tuning.swarm, onHit: damage, onMessage: showMessage });
 
 const raycaster = new THREE.Raycaster();
 function hasLineOfSight(from, to) {
@@ -407,7 +448,15 @@ function updateBot(delta) {
   if (bot.botMissileTimer <= 0 && Math.random() < delta * tuning.bot.missileChance) { fireMissiles(bot, player); bot.botMissileTimer = tuning.bot.missileInterval; }
 }
 
-let cameraYaw = 0.7; let cameraPitch = 0.22; let lastSpace = false; let lastMissile = false; let messageTimer = 0;
+let cameraYaw = 0.7; let cameraPitch = 0.22; let lastSpace = false; let lastMissile = false; let lastSwarm = false; let messageTimer = 0;
+const poseCycle = ["standing", "gerwalk", "airplane", "gerwalk"];
+let poseCycleIndex = previewPose === "airplane" ? 2 : 0;
+function applyCyclePose() {
+  const pose = poseCycle[poseCycleIndex];
+  player.object3D.userData.poseOverride = pose;
+  setMode(player, pose === "standing" ? "combat" : "glide");
+  showMessage(`POSE: ${pose.toUpperCase()}`);
+}
 function updateCamera(delta) {
   cameraYaw += input.cameraX * tuning.camera.rotateSpeed * delta; cameraPitch = THREE.MathUtils.clamp(cameraPitch + input.cameraY * tuning.camera.pitchSpeed * delta, -0.15, 0.8);
   const focus = player.position.clone().add(new THREE.Vector3(0, 2.2, 0)); const offset = new THREE.Vector3(0, tuning.camera.height, tuning.camera.distance).applyEuler(new THREE.Euler(cameraPitch, cameraYaw, 0, "YXZ"));
@@ -432,6 +481,8 @@ function createTuningUI() {
     const groupElement = document.createElement("div"); groupElement.className = "tuning-group"; groupElement.innerHTML = `<h3>${groupName.toUpperCase()}</h3>`;
     for (const [name, value] of Object.entries(group)) {
       const field = document.createElement("div"); field.className = "tuning-field"; const label = document.createElement("label"); label.textContent = name;
+      if (typeof value === "boolean") { const inputElement = document.createElement("input"); inputElement.type = "checkbox"; inputElement.checked = value; inputElement.dataset.group = groupName; inputElement.dataset.name = name; inputElement.addEventListener("change", () => { tuning[groupName][name] = inputElement.checked; }); field.append(label, inputElement); groupElement.append(field); continue; }
+      if (typeof value === "string") { const inputElement = document.createElement("input"); inputElement.type = "text"; inputElement.value = value; inputElement.dataset.group = groupName; inputElement.dataset.name = name; inputElement.addEventListener("input", () => { tuning[groupName][name] = inputElement.value; }); field.append(label, inputElement); groupElement.append(field); continue; }
       const number = document.createElement("input"); number.type = "number"; number.step = "any"; number.min = name === "health" ? "1" : "0"; number.value = value;
       const range = document.createElement("input"); range.type = "range"; range.min = number.min; range.max = Math.max(value * 3, 1); range.step = "any"; range.value = value;
       number.dataset.group = range.dataset.group = groupName; number.dataset.name = range.dataset.name = name; field.append(label, number, range); groupElement.append(field);
@@ -440,11 +491,16 @@ function createTuningUI() {
     }
     container.append(groupElement);
   }
-}
-function syncTuningUI() { document.querySelectorAll("#tuning-controls input").forEach((inputElement) => { const value = tuning[inputElement.dataset.group][inputElement.dataset.name]; inputElement.value = value; if (inputElement.type === "range") inputElement.max = Math.max(Number(inputElement.max), value, 1); }); }
+}function syncTuningUI() { document.querySelectorAll("#tuning-controls input").forEach((inputElement) => { const value = tuning[inputElement.dataset.group][inputElement.dataset.name]; if (inputElement.type === "checkbox") inputElement.checked = value; else inputElement.value = value; if (inputElement.type === "range") inputElement.max = Math.max(Number(inputElement.max), value, 1); }); }
 document.querySelector("#tuning-toggle").addEventListener("click", () => { const panel = document.querySelector("#tuning-panel"); panel.classList.toggle("collapsed"); document.querySelector("#tuning-toggle span").textContent = panel.classList.contains("collapsed") ? "+" : "−"; });
 document.querySelector("#reset-tuning").addEventListener("click", () => { for (const [group, values] of Object.entries(tuningDefaults)) Object.assign(tuning[group], structuredClone(values)); player.health = tuning.player.health; bot.health = tuning.player.health; syncTuningUI(); showMessage("TUNING RESET"); });
 document.querySelector("#copy-tuning").addEventListener("click", async () => { try { await navigator.clipboard.writeText(JSON.stringify(tuning, null, 2)); showMessage("TUNING COPIED"); } catch { showMessage("COPY BLOCKED"); } });
+document.querySelector("#swarm-fire").addEventListener("click", () => missileSwarm.fireVolley());
+document.querySelector("#swarm-clear").addEventListener("click", () => missileSwarm.clear());
+document.querySelector("#swarm-copy").addEventListener("click", async () => { try { await navigator.clipboard.writeText(JSON.stringify(tuning.swarm, null, 2)); showMessage("SWARM CONFIG COPIED"); } catch { showMessage("COPY BLOCKED"); } });
+document.querySelector("#swarm-load").addEventListener("click", () => { const text = window.prompt("Paste missile swarm JSON"); if (!text) return; try { Object.assign(tuning.swarm, JSON.parse(text)); syncTuningUI(); showMessage("SWARM CONFIG LOADED"); } catch { showMessage("INVALID CONFIG"); } });
+Object.entries(missileSwarmPresets).forEach(([name, values]) => { const button = document.querySelector(`[data-swarm-preset="${name}"]`); if (button) button.addEventListener("click", () => { Object.assign(tuning.swarm, structuredClone(values)); syncTuningUI(); showMessage(name); }); });
+
 createTuningUI();
 
 const clock = new THREE.Clock(); let frameCounter = 0; let fpsTimer = 0; let fps = 0;
@@ -452,18 +508,18 @@ function updateHUD(delta) {
   frameCounter += 1; fpsTimer += delta; if (fpsTimer >= 1) { fps = frameCounter; frameCounter = 0; fpsTimer = 0; }
   const distance = player.position.distanceTo(bot.position); const set = (id, value) => { document.querySelector(id).textContent = value; };
   set("#mode", player.mode.toUpperCase()); set("#speed", player.velocity.length().toFixed(1)); set("#distance", distance.toFixed(1)); set("#fps", fps);
-  set("#gun-status", player.gunCooldown > 0 ? player.gunCooldown.toFixed(1) : "READY"); set("#missile-status", player.missileCooldown > 0 ? player.missileCooldown.toFixed(1) : "READY"); set("#player-health-text", Math.ceil(player.health)); set("#bot-health-text", Math.ceil(bot.health));
+  set("#gun-status", player.gunCooldown > 0 ? player.gunCooldown.toFixed(1) : "READY"); set("#missile-status", `${missileSwarm.activeCount}/${tuning.swarm.missileCount}`); set("#player-health-text", Math.ceil(player.health)); set("#bot-health-text", Math.ceil(bot.health));
   const healthMaximum = Math.max(tuning.player.health, 1); document.querySelector("#player-health").style.width = `${Math.max(0, player.health / healthMaximum * 100)}%`; document.querySelector("#bot-health").style.width = `${Math.max(0, bot.health / healthMaximum * 100)}%`;
   document.querySelector("#reticle").style.borderColor = distance < tuning.gun.assistMaxRange * 0.35 ? "#fff" : "rgba(255,255,255,.55)";
-  updateRadar();
+  updateRadar(); const swarmStats = document.querySelector("#swarm-stats"); if (swarmStats) swarmStats.textContent = `SWARM ${missileSwarm.activeCount} · TRAIL VERTICES ${missileSwarm.trailVertices} · DRAW CALLS ${renderer.info.render.calls}`;
 }
 function animate() {
   requestAnimationFrame(animate); const delta = Math.min(clock.getDelta(), 0.05); readInput();
   if (messageTimer > 0) { messageTimer -= delta; if (messageTimer <= 0) document.querySelector("#message").style.opacity = "0"; }
-  if (input.switchMode && !lastSpace && player.dead <= 0) setMode(player, player.mode === "combat" ? "glide" : "combat"); lastSpace = input.switchMode;
-  if (input.fireMissile && !lastMissile) fireMissiles(player, bot); lastMissile = input.fireMissile; player.gunCooldown -= delta; player.missileCooldown -= delta;
+  if (input.switchMode && !lastSpace && player.dead <= 0) { poseCycleIndex = (poseCycleIndex + 1) % poseCycle.length; applyCyclePose(); } lastSpace = input.switchMode;
+  if (input.fireMissile && !lastMissile) fireMissiles(player, bot); lastMissile = input.fireMissile; if (input.fireSwarm && !lastSwarm) missileSwarm.fireVolley(); lastSwarm = input.fireSwarm; player.gunCooldown -= delta; player.missileCooldown -= delta;
   const playerCombatDirection = getCombatDirection(input, cameraYaw); updateMech(player, input, delta, playerCombatDirection); if (input.fireGun) fireGun(player, bot);
-  updateBot(delta); updateProjectiles(delta); updateCamera(delta); updateHUD(delta); renderer.render(scene, camera);
+  updateBot(delta); updateProjectiles(delta); missileSwarm.update(delta); updateCamera(delta); updateHUD(delta); renderer.render(scene, camera);
 }
 addEventListener("resize", () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 camera.position.set(-27, 8, 35); animate();

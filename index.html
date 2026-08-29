@@ -40,7 +40,7 @@
     </aside>
     <div id="reticle" aria-hidden="true"><span></span></div>
     <section id="help">
-      <strong>WASD</strong> move · <strong>Arrows</strong> camera · <strong>U</strong> gun · <strong>I</strong> missiles · <strong>Space</strong> glide
+      <strong>WASD</strong> move · <strong>Arrows</strong> camera · <strong>U</strong> gun · <strong>I</strong> missiles · <strong>O</strong> swarm · <strong>Space</strong> cycle pose
     </section>
     <section id="tuning-panel" class="collapsed">
       <button id="tuning-toggle" type="button">TUNING <span>+</span></button>
@@ -49,7 +49,16 @@
         <button id="reset-tuning" type="button">Reset Defaults</button>
         <button id="copy-tuning" type="button">Copy Tuning JSON</button>
       </div>
-    </section>
+      <div class="tuning-actions swarm-actions">
+        <button id="swarm-fire" type="button">FIRE SWARM</button><button id="swarm-clear" type="button">CLEAR</button>
+      </div>
+      <div class="tuning-actions swarm-actions">
+        <button data-swarm-preset="ANIME BLOOM" type="button">BLOOM</button><button data-swarm-preset="DOUBLE SPIRAL" type="button">SPIRAL</button><button data-swarm-preset="ENCIRCLEMENT" type="button">ENCIRCLE</button>
+      </div>
+      <div class="tuning-actions swarm-actions">
+        <button data-swarm-preset="TIGHT HOMING" type="button">TIGHT</button><button data-swarm-preset="CHAOTIC ANIME" type="button">CHAOTIC</button><button id="swarm-copy" type="button">COPY</button><button id="swarm-load" type="button">LOAD</button>
+      </div>
+      <div id="swarm-stats" class="swarm-stats">SWARM 0 · TRAIL VERTICES 0</div>    </section>
     <div id="message" role="status"></div>
     <script type="module" src="./src/main.js"></script>
   </body>

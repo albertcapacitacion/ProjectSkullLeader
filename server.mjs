@@ -8,7 +8,8 @@ const mimeTypes = { ".html": "text/html", ".css": "text/css", ".js": "text/javas
 const server = createServer(async (request, response) => {
   let requestedPath;
   try {
-    requestedPath = request.url === "/" ? "/index.html" : decodeURIComponent(request.url.split("?")[0]);
+    const requestPath = request.url.split("?")[0];
+    requestedPath = requestPath === "/" ? "/index.html" : decodeURIComponent(requestPath);
   } catch {
     response.writeHead(400);
     response.end("Bad request");
